@@ -6,7 +6,7 @@
 
   ######################################################################### | Generic STM32F1 series,   | User_Setup.h:                                | TFT_CS   PA2
   ###### DON'T FORGET TO UPDATE THE User_Setup.h FILE IN THE LIBRARY ###### | maple dfu bootloader 2.0, | TFT_RGB_ORDER TFT_BGR, ST7735_GREENTAB160x80 | TFT_DC   PA1  +PA5,7
-  ######################################################################### | usb CDC usart!!!          | #define STM32, #define ST7735_DRIVER         | TFT_RST  PA0
+  ######################################################################### | usb CDC usart!!!          | #define STM32, #define ST7735_DRIVER         | TFT_RST  PA0  +PB0
 *////           (c)Airrr(r)          Apr.2022          v:1         17.04.22 |
 
 #include <TFT_eSPI.h>          //Hardware-specific library
@@ -30,6 +30,7 @@
 #define analogSeedPin PA4      //Leave unconnected.
 #define soundPin PB4           //Sound. Optional. Piezo to ground.
 
+#define lcdOff PB0             //Turn off lcd while grounded.
 
 TFT_eSPI tft = TFT_eSPI();
 PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_REMOTE);
@@ -52,7 +53,7 @@ bool novi = true;          //New game?
 word score = 0;            //
 bool mish = false;         //Mouseless mode
 word autoRep = 200;        //Keys auto repeat delay
-word levelUpLines = 10;    //Switch to next level. =< 999!!!
+word levelUpLines = 1000;  //Switch to next level. 1000 max!!! x9 levels = 9000 lines.
 
 
 byte i[4][4] = {{0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}}; //lame
@@ -144,7 +145,7 @@ int snd[] = {
 
 
 void setup(void) {  //-----------------------------------------SETUP-START--------------------------------------------
-  Serial.begin(115200);
+  //Serial.begin(115200);
   //delay(2000);                                //Enable for software serial to comeup.
   //Serial.println("Start");
 
@@ -161,7 +162,9 @@ void setup(void) {  //-----------------------------------------SETUP-START------
   pinMode(rotButton, INPUT_PULLUP);
   pinMode(downButton, INPUT_PULLUP);
   pinMode(soundPin, OUTPUT);                        //Sound output.
+  pinMode(lcdOff, OUTPUT);                          //LCD show.
   delay(10);
+  digitalWrite(lcdOff, 1);                          //Turn LCD on.
 
   if (digitalRead(mainButton) == 1) mish = true;    //Mouse mode. Press PAUSE on sturtup to run without mouse.
 
@@ -193,7 +196,7 @@ void loop() {//--------------------------------------------LOOP-START-----------
   if ((digitalRead(downButton) == 0) && ((millis() - vremya) >= (fallAcc))) checkMove(0), vremya = millis();     //Button down
   if ((digitalRead(mainButton) == 0) && (millis() - debncTime >= autoRep)) goPause();                            //Button pause
 
-  if ((millis() - vremya) >= (1000 - fallAcc - (100 * (gameSpeed - 1)))) checkMove(0), vremya = millis();         // timed fall
+  if ((millis() - vremya) >= (1000 - fallAcc - (100 * (gameSpeed - 1)))) checkMove(0), vremya = millis();        // timed fall
   digitalWrite(soundPin, LOW);
 }//---------------------------------------------------------LOOP-END-----------------------------------------------------
 
@@ -211,7 +214,7 @@ void drawScreen() { //-------------------------------------REDRAW Pole-START----
     }
   }
 
-  for (byte i = 0; i < 4; i++) {               // --------Draw Figure @myX,myY
+  for (byte i = 0; i < 4; i++) {               // --------Draw Figure @myX, myY
     for (byte ii = 0; ii < 4; ii++) {
       if (figure[ii][i] != 0) tft.fillRect((ii + myX) * 5 + 3, (i + myY) * 5 + 3,  4,  4, allBlocks[fig].col);
     }
@@ -255,8 +258,7 @@ void selectNext() {  //-----------------------------Select block. And next too-S
   tft.pushImage(60, 44, levelPicWidth, levelPicHeight, levelPic);
   tft.pushImage(60, 68, scorePicWidth, scorePicHeight, scorePic);
 
-  //tft.setTextColor(TFT_GREENYELLOW);               // Print some text
-  tft.setTextColor(TFT_RED);
+  tft.setTextColor(TFT_RED);                         // Print some text
   tft.setCursor(68, 59);
   tft.print(gameSpeed);                              // Level
 
@@ -369,7 +371,7 @@ void shiftPole() {  //----------------------------------SHIFT-START-------------
         // remove line @hh. Animation then shift
         for (byte ww = 0; ww < w; ww++) {                           // Simply animation
           tft.fillRect(ww * 5 + 3, hh * 5 + 3,  4,  4, TFT_WHITE);
-          tone(soundPin, 800 + (ww * 300), 50);
+          tone(soundPin, 800 + (ww * 300), 40);
           delay(15);
         }
 
@@ -498,12 +500,12 @@ void startScreen() {//---------------------------------------Welcome screen-STAR
     tft.setCursor(1, 0);
     tft.print(F("...ATETRIS..."));
 
-    tone(soundPin, snd[tn], noteTime[tn]);        //----------SOUND
+    tone(soundPin, snd[tn], noteTime[tn]);                                 //----------SOUND
     yield();
     delay(noteTime[tn]);
     noTone(soundPin);
     tn++;
-    if (tn >= 115) tn = 0, delay (500);           // Notes
+    if (tn >= (sizeof(snd) / sizeof(snd[0]))) tn = 0, delay (500);         // Notes  // >=115
   }
 
   tft.fillScreen(TFT_BLACK);
@@ -531,24 +533,38 @@ void goingFinal() {  //-------------------------ENDSCREEN-START-----------------
 
 
 void goPause() { //----------------------------------------PAUSE-START---------------------------------------------------
-  tft.fillRect(8, 53, 44, 24, TFT_BLACK);         // <- ramka Pause
+  tft.fillRect(8, 53, 44, 24, TFT_BLACK);                    // <- ramka Pause
   word tempc = random(65500);
 
   debncTime = millis() + 500;
+  long sleepTime = millis();
   bool s = false;
-  while (s == false) {             //__________________________Wait click!
+  int totalSlp = 9;                    // Seconds
+
+  while (s == false) {                 //__________________________Wait click!______________________________
     if (mish == true) mouse.get_data(), s = mouse.clicked(0);
     if ((digitalRead(mainButton) == 0) && (millis() - debncTime >= autoRep)) s = true;
-
-    tft.setCursor(16, 61);
     tft.setTextColor(tempc);
-    tft.print("Pause");
+    tft.setCursor(10, 61);
+    tft.print("Pause ");
+
+    if (((millis() - sleepTime) >= 1000) && (totalSlp >= 0)) {       //Once per sec
+      tft.fillRect(44, 60, 7, 9, TFT_BLACK);                         //<- ramka Countdown
+      tft.print(totalSlp);                                           //Count 9->0 sec and sleep
+      totalSlp--;
+      sleepTime = millis();
+      if (totalSlp < 0) delay(500), digitalWrite(lcdOff, 0);         //Turn LCD off after 10 sec. Saves about 20mA.
+    }
 
     tempc++;
     if (tempc >= 65535) tempc = 0;
     delay(25);
   }
-  tft.fillRect(12, 58, 35, 15, TFT_BLACK);        // <- ramka Pause
+
+  tone(soundPin, 300, 50);                             //Beep on wake.
+  digitalWrite(lcdOff, 1);                             //Turn LCD on.
+  delay(500);
+  tft.fillRect(9, 58, 42, 15, TFT_BLACK);              // <- ramka Pause
   debncTime = millis() + autoRep;
   vremya = millis();
 }//-------------------------------------------------------PAUSE-END---------------------------------------------------
