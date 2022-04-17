@@ -35,11 +35,12 @@ PA4         -Leave unconnected. Analog random seed.
 PB4         -Sound. Optional. Piezo to ground.  
   
 LCD:  
-PA5         -SCL      
+PA5         -SCL  
 PA7         -SDA  
 PA0         -RES  
 PA1         -DC  
 PA2         -CS  
+PB0         -BLK (optional, saves 20mA)  
   
   
   
@@ -50,5 +51,5 @@ UPDATE THE User_Setup.h FILE IN THE LIBRARY
   
   
 To do:  
--deep sleep after few seconds of pause. (Attach LCD's BLK pin to STM32).  
+-deep sleep after few seconds on LCD off or save to EEPROM.  
   
