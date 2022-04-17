@@ -18,13 +18,9 @@ To play without mouse start game with pause button pressed (grounded).
   
 ![alt text](desk1.jpg)  
   
-![alt text](start1.jpg)  
+![alt text](start1.jpg) ![alt text](pause1.jpg)  
   
-![alt text](pause1.jpg)  
-  
-![alt text](game1.jpg)  
-  
-![alt text](game2.jpg)  
+![alt text](game1.jpg) ![alt text](game2.jpg)  
   
     
 Hardware:  
